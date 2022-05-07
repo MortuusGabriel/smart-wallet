@@ -6,16 +6,13 @@ import json
 class WalletById(web.View):
 
     async def get(self):
-        walletId = self.request.match_info.get("walletId", None)
-        output = get_wallet_by_id(walletId)
-        return web.json_response(output, status=200)
+        # walletId = self.request.match_info.get("walletId", None)
+        # output = get_wallet_by_id(walletId)
+        return web.json_response(status=404)
 
     async def post(self):
         data = await self.request.json()
-        output = {
-            'result': data
-        }
-        return web.json_response(output, status=201)
+        return web.json_response(status=201)
 
     async def delete(self):
         data = await self.request.json()
@@ -42,21 +39,22 @@ class Wallets(web.View):
         return web.json_response(output, status=201)
 
     async def delete(self):
-        return web.json_response(status=204)
+        return web.json_response(status=404)
 
 
 class Transactions(web.View):
 
     async def get(self):
-        walletId = await self.request.match_info.get("walletId", None)
-        output = get_transactions_by_wallet_id(walletId)
+        data = await self.request.json()
+        walletId = self.request.match_info.get("walletId", None)
+        token = str(data['token'])
+        output = get_transactions_by_wallet_id(token, walletId)
         return web.json_response(output, status=200)
 
     async def post(self):
         data = await self.request.json()
-        output = {
-            'result': data
-        }
+        token = str(data['token'])
+        output = create_transaction(token)
         return web.json_response(output, status=201)
 
     async def delete(self):
@@ -66,8 +64,10 @@ class Transactions(web.View):
 class Categories(web.View):
 
     async def get(self):
-        value = await self.request.match_info.get("value", None)
-        output = get_categories_by_person_id(value)
+        data = await self.request.json()
+        value = self.request.match_info.get("value", None)
+        token = str(data['token'])
+        output = get_categories_by_value(token, value)
         return web.json_response(output, status=200)
 
     async def post(self):
@@ -94,13 +94,25 @@ class Registrate(web.View):
             print(ex)
 
 
+class MainScreen(web.View):
+
+    async def get(self):
+        data = await self.request.json()
+        token = str(data['token'])
+        output = get_main_screen_data(token)
+        return web.json_response(output, status=200)
+
+
 app = web.Application()
 
 app.router.add_view("/wallets", Wallets)
+app.router.add_view("/transactions/{walletId}", Transactions)
 app.router.add_view("/wallets/{walletId}", WalletById)
+app.router.add_view("/mainscreendata", MainScreen)
+app.router.add_view("/transactions", Transactions)
 app.router.add_view("/categories/person/{value}", Categories)
-app.router.add_view("/transactions/withCategory/{walletId}", Transactions)
 app.router.add_view("/registrate", Registrate)
+
 
 
 if __name__ == '__main__':

@@ -1,10 +1,28 @@
+import json
+from peewee_validates import Validator, StringField, IntegerField, validate_regexp
 from config import DATABASE
 from peewee import *
-from jwt_authorize import  jwt_encode, jwt_decode
+from jwt_authorize import jwt_encode, jwt_decode
+from json import JSONEncoder
+import datetime
+import decimal
 
 # перенести креды в переменные окружения
 conn = MySQLDatabase(DATABASE['db'], host=DATABASE['host'], port=DATABASE['port'], user=DATABASE['user'], passwd=DATABASE['passwd'])
 
+
+
+class DecimalEncoder(JSONEncoder):
+    def default(self, o):
+        if isinstance(o, decimal.Decimal):
+            return float(o)
+        return super(DecimalEncoder, self).default(o)
+
+
+class DateTimeEncoder(JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, (datetime.date, datetime.datetime)):
+            return obj.isoformat()
 
 
 class BaseModel(Model):
@@ -56,6 +74,9 @@ class Transactions(BaseModel):
     currency = CharField(column_name='currency', max_length=45)
     transaction_time = TimestampField(column_name='transaction_time')
 
+    class Meta:
+        table_name = 'transactions'
+
 
 class Currencies(BaseModel):
     currency_id = AutoField(column_name='currency_id', primary_key=True)
@@ -64,7 +85,7 @@ class Currencies(BaseModel):
     is_up = BooleanField(column_name='is_up')
 
     class Meta:
-        table_name = 'categories'
+        table_name = 'currencies'
 
 
 def get_wallets(token):
@@ -72,7 +93,6 @@ def get_wallets(token):
         email = str(jwt_decode(token)['email'])
         user_query = Users.select().where(Users.email == email)
         user = user_query.dicts().execute()
-        print(user[0])
 
 
         if user[0]['token'] == token:
@@ -82,8 +102,7 @@ def get_wallets(token):
                 wallets.append(i)
             return wallets
         else:
-            ########Ошибка###########
-            pass
+            return {"status": "wrong token"}
 
     except Exception as e:
         return {"status": str(e)}
@@ -100,7 +119,9 @@ def create_wallet(token, json_data):
                                            name=json_data['name'], amount=json_data['amount'], limit=json_data['limit'],
                                            )
             wallets_query.execute()
-        return {"status": "OK"}
+            return {"status": "OK"}
+        else:
+            return {"status": "wrong token"}
     except Exception as e:
         return {"status": str(e)}
 
@@ -118,6 +139,8 @@ def delete_wallet(token, walletId):
                 return {"status": "no such element"}
             else:
                 return {"status": "OK"}
+        else:
+            return {"status": "wrong token"}
     except Exception as e:
         return {"status": str(e)}
 
@@ -130,20 +153,48 @@ def get_wallet_by_id(wallet_id):
         return {"status": str(e)}
 
 
-def get_transactions_by_wallet_id(wallet_id):
-    wal_query = Transactions.select().where(Transactions.wallet_id == wallet_id)
-    answer = []
-    for i in wal_query.dicts().execute():
-        answer.append(i)
-    return answer
+def get_transactions_by_wallet_id(token, wallet_id):
+    try:
+        # получение токена пользователя из бд
+        email = str(jwt_decode(token)['email'])
+        user_query = Users.select().where(Users.email == email)
+        user = user_query.dicts().execute()
+
+        wallets_query = Wallets.select(Wallets.wallet_id).where(Wallets.user_id == user[0]['user_id'])
+        wallets = [i['wallet_id'] for i in wallets_query.dicts().execute()]
+
+        ######здесь ошибка, если не нашлось пользователей#######
+        if user[0]['token'] == token:
+            answer = []
+            if int(wallet_id) in wallets:
+                wal_query = Transactions.select().where(Transactions.wallet_id == wallet_id)
+                for i in wal_query.dicts().execute():
+                    i['transaction_time'] = DateTimeEncoder().encode(i['transaction_time'])
+                    answer.append(i)
+            if len(answer) == 0 or int(wallet_id) not in wallets:
+                return {"status": "nothing found"}
+            else:
+                return answer
+        else:
+            return {"status": "wrong token"}
+    except Exception as e:
+        return {"status": str(e)}
 
 
-def get_categories_by_person_id(value):
-    wal_query = Categories.select().where(Categories.user_id == value or Categories.user_id == None)
-    answer = []
-    for i in wal_query.dicts().execute():
-        answer.append(i)
-    return answer
+def get_categories_by_value(token, value):
+    try:
+        email = str(jwt_decode(token)['email'])
+        user_query = Users.select().where(Users.email == email)
+        user = user_query.dicts().execute()
+
+        categories_query = Categories.select().where(((Categories.user_id.is_null()) | (Categories.user_id == user[0]['user_id']))).select().where(Categories.category_type == int(value))
+        categories = [i for i in categories_query.dicts().execute()]
+        if len(categories) == 0:
+            return {"status": "nothing found"}
+        else:
+            return categories
+    except Exception as e:
+        return {"status": str(e)}
 
 
 def create_user(json_data):
@@ -157,6 +208,50 @@ def create_user(json_data):
         return token
     except Exception as e:
         return {"status": "error"}
+
+
+def get_main_screen_data(token):
+    try:
+        email = str(jwt_decode(token)['email'])
+        user_query = Users.select().where(Users.email == email)
+        user = user_query.dicts().execute()
+
+        if user[0]['token'] == token:
+            balance_query = Wallets.select(fn.SUM(Wallets.amount), fn.SUM(Wallets.income), fn.SUM(Wallets.expense)).where(Wallets.user_id == user[0]['user_id'])
+            balance = balance_query.dicts().execute()[0]
+            for i in balance:
+                balance[i] = DecimalEncoder().encode(balance[i])
+            currency_query = Currencies.select(Currencies.name, Currencies.value, Currencies.is_up)
+            currencies = [i for i in currency_query.dicts().execute()]
+            ######какие поля выбирать#########
+            wallets_query = Wallets.select().where(Wallets.user_id == user[0]['user_id'])
+            wallets = [i for i in wallets_query.dicts().execute()]
+
+
+            if len(balance) == 0 or len(currencies)==0 or len(wallets)==0:
+                return {"status": "nothing found"}
+            else:
+                return {"balance": balance, "currencyDto": currencies, "wallets": wallets}
+        else:
+            return {"status": "wrong token"}
+    except Exception as e:
+        return {"status": str(e)}
+
+
+def create_transaction(token):
+    try:
+        email = str(jwt_decode(token)['email'])
+        user_query = Users.select().where(Users.email == email)
+        user = user_query.dicts().execute()
+
+        categories_query = Categories.select().where(((Categories.user_id.is_null()) | (Categories.user_id == user[0]['user_id']))).select().where(Categories.category_type == int(value))
+        categories = [i for i in categories_query.dicts().execute()]
+        if len(categories) == 0:
+            return {"status": "nothing found"}
+        else:
+            return categories
+    except Exception as e:
+        return {"status": str(e)}
 
 
 conn.close()
