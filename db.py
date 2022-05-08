@@ -263,4 +263,27 @@ def create_transaction(data, token):
         return {"status": str(e)}
 
 
+def update_transaction(data, transactionId):
+    try:
+        token = data['token']
+        email = str(jwt_decode(token)['email'])
+        user_query = Users.select().where(Users.email == email)
+        user = user_query.dicts().execute()
+
+        if user[0]['token'] == token:
+            validator = SimpleValidator()
+            validator.validate(data['data'])
+            if len(validator.errors) == 0:
+                transactions_query = Transactions.update(wallet_id=validator.data['walletId'], category_id=validator.data['categoryId'],
+                                                         value=float(validator.data['value']), currency=validator.data['currency']).where(Transactions.transaction_id == transactionId)
+
+                transactions_query.execute()
+                return {"status": "OK"}
+            else:
+                return str(validator.errors)
+        else:
+            return {"status": "invalid token"}
+    except Exception as e:
+        return {"status": str(e)}
+
 conn.close()

@@ -46,7 +46,7 @@ class Transactions(web.View):
 
     async def get(self):
         data = await self.request.json()
-        walletId = self.request.match_info.get("walletId", None)
+        walletId = self.request.match_info.get("Id", None)
         token = str(data['token'])
         output = get_transactions_by_wallet_id(token, walletId)
         return web.json_response(output, status=200)
@@ -56,6 +56,12 @@ class Transactions(web.View):
         token = str(data['token'])
         output = create_transaction(data, token)
         return web.json_response(output, status=201)
+
+    async def put(self):
+        data = await self.request.json()
+        transactionId = self.request.match_info.get("Id", None)
+        output = update_transaction(data, transactionId)
+        return web.json_response(output, status=200)
 
     async def delete(self):
         return web.json_response(status=204)
@@ -106,7 +112,7 @@ class MainScreen(web.View):
 app = web.Application()
 
 app.router.add_view("/wallets", Wallets)
-app.router.add_view("/transactions/{walletId}", Transactions)
+app.router.add_view("/transactions/{Id}", Transactions)
 app.router.add_view("/wallets/{walletId}", WalletById)
 app.router.add_view("/mainscreendata", MainScreen)
 app.router.add_view("/transactions", Transactions)
