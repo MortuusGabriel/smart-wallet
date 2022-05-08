@@ -1,14 +1,17 @@
 import json
-from peewee_validates import Validator, StringField, IntegerField, validate_regexp
+import re
+import peewee_validates
 from config import DATABASE
 from peewee import *
 from jwt_authorize import jwt_encode, jwt_decode
 from json import JSONEncoder
+from validators import *
 import datetime
 import decimal
 
 # перенести креды в переменные окружения
 conn = MySQLDatabase(DATABASE['db'], host=DATABASE['host'], port=DATABASE['port'], user=DATABASE['user'], passwd=DATABASE['passwd'])
+
 
 
 
@@ -70,9 +73,9 @@ class Transactions(BaseModel):
     transaction_id = AutoField(column_name='transaction_id', primary_key=True)
     wallet_id = IntegerField(column_name='wallet_id')
     category_id = IntegerField(column_name='category_id', null=True)
-    value = IntegerField(column_name='value')
+    value = FloatField(column_name='value')
     currency = CharField(column_name='currency', max_length=45)
-    transaction_time = TimestampField(column_name='transaction_time')
+    transaction_time = DateTimeField(column_name='transaction_time', default=datetime.datetime.now)
 
     class Meta:
         table_name = 'transactions'
@@ -238,18 +241,24 @@ def get_main_screen_data(token):
         return {"status": str(e)}
 
 
-def create_transaction(token):
+def create_transaction(data, token):
     try:
         email = str(jwt_decode(token)['email'])
         user_query = Users.select().where(Users.email == email)
         user = user_query.dicts().execute()
 
-        categories_query = Categories.select().where(((Categories.user_id.is_null()) | (Categories.user_id == user[0]['user_id']))).select().where(Categories.category_type == int(value))
-        categories = [i for i in categories_query.dicts().execute()]
-        if len(categories) == 0:
-            return {"status": "nothing found"}
+        if user[0]['token'] == token:
+            validator = SimpleValidator()
+            validator.validate(data['data'])
+            if len(validator.errors) == 0:
+                transactions_query = Transactions.insert(wallet_id=validator.data['walletId'], category_id=validator.data['categoryId'],
+                                                         value=float(validator.data['value']), currency=validator.data['currency'])
+                transactions_query.execute()
+                return {"status": "OK"}
+            else:
+                return str(validator.errors)
         else:
-            return categories
+            return {"status": "invalid token"}
     except Exception as e:
         return {"status": str(e)}
 

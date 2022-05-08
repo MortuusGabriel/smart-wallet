@@ -54,7 +54,7 @@ class Transactions(web.View):
     async def post(self):
         data = await self.request.json()
         token = str(data['token'])
-        output = create_transaction(token)
+        output = create_transaction(data, token)
         return web.json_response(output, status=201)
 
     async def delete(self):
