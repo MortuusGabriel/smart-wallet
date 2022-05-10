@@ -55,7 +55,8 @@ class Transactions(web.View):
         data = await self.request.json()
         token = str(data['token'])
         output = create_transaction(data, token)
-        return web.json_response(output, status=201)
+        return web.json_response(output, status=200)
+
 
     async def put(self):
         data = await self.request.json()
@@ -64,7 +65,10 @@ class Transactions(web.View):
         return web.json_response(output, status=200)
 
     async def delete(self):
-        return web.json_response(status=204)
+        data = await self.request.json()
+        transactionId = self.request.match_info.get("Id", None)
+        output = delete_transaction(data, transactionId)
+        return web.json_response(output, status=200)
 
 
 class Categories(web.View):

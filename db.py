@@ -286,4 +286,29 @@ def update_transaction(data, transactionId):
     except Exception as e:
         return {"status": str(e)}
 
+
+def delete_transaction(data, transactionId):
+    try:
+        token = data['token']
+        email = str(jwt_decode(token)['email'])
+        user_query = Users.select().where(Users.email == email)
+        user = user_query.dicts().execute()
+
+        if user[0]['token'] == token:
+            transactions = Transactions.select(Transactions.transaction_id
+                                               ).where(Transactions.wallet_id.in_(Wallets.select().where(Wallets.user_id==user[0]['user_id'])))
+            transactions = [str(i) for i in transactions]
+            if str(transactionId) in transactions:
+                transactions_query = Transactions.delete().where(Transactions.transaction_id==transactionId)
+                if transactions_query.execute() > 0:
+                    return {"status": "OK"}
+                else:
+                    return {"status": "no rows deleted"}
+            else:
+                return {"status": "no such transaction"}
+        else:
+            return {"status": "invalid token"}
+    except Exception as e:
+        return {"status": str(e)}
+
 conn.close()
