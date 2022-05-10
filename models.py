@@ -42,10 +42,10 @@ class Wallets(BaseModel):
     user_id = IntegerField(column_name='user_id')
     currency_id = IntegerField(column_name='currency_id')
     name = CharField(column_name='name', max_length=45)
-    amount = IntegerField(column_name='amount', default=0)
-    limit = IntegerField(column_name='limit', null=True)
-    income = IntegerField(column_name='income', null=True, default=0)
-    expense = IntegerField(column_name='expense', null=True, default=0)
+    amount = FloatField(column_name='amount', default=0)
+    limit = FloatField(column_name='limit', null=True)
+    income = FloatField(column_name='income', null=True, default=0)
+    expense = FloatField(column_name='expense', null=True, default=0)
     is_hide = BooleanField(column_name='is_hide', default=False)
 
     class Meta:

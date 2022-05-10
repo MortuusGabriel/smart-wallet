@@ -34,10 +34,7 @@ class Wallets(web.View):
 
     async def post(self):
         data = await self.request.json()
-        wallet = create_wallet(data['token'], data['wallet_info'])
-        output = {
-            'result': wallet
-        }
+        output = create_wallet(data['token'], data['wallet_info'])
         return web.json_response(output, status=201)
 
     async def delete(self):
@@ -132,8 +129,8 @@ class RepeatTimer(Timer):
 
 
 if __name__ == '__main__':
-    update_currencies()
-    timer = RepeatTimer(60, update_currencies)
-    timer.start()
+    # update_currencies()
+    # timer = RepeatTimer(60, update_currencies)
+    # timer.start()
     web.run_app(app, port=8000)
-    timer.cancel()
+    # timer.cancel()

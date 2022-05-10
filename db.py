@@ -31,13 +31,18 @@ def create_wallet(token, json_data):
         email = str(jwt_decode(token)['email'])
         user_query = Users.select().where(Users.email == email)
         user = user_query.dicts().execute()
-
         if user[0]['token'] == token:
-            wallets_query = Wallets.insert(user_id=user[0]['user_id'], currency_id=json_data['currency_id'],
-                                           name=json_data['name'], amount=json_data['amount'], limit=json_data['limit'],
-                                           )
-            wallets_query.execute()
-            return {"status": "OK"}
+            validator = WalletValidator()
+            validator.validate(json_data)
+            if len(validator.errors) == 0:
+                wallets_query = Wallets.insert(user_id=user[0]['user_id'], currency_id=validator.data['currency_id'],
+                                               name=validator.data['name'], amount=validator.data['amount'],
+                                               limit=validator.data['limit'],
+                                               )
+                wallets_query.execute()
+                return {"status": "OK"}
+            else:
+                return str(validator.errors)
         else:
             return {"status": "wrong token"}
     except Exception as e:
@@ -51,7 +56,8 @@ def delete_wallet(token, walletId):
         user = user_query.dicts().execute()
 
         if user[0]['token'] == token:
-            wallets_query = Wallets.delete().where(Wallets.user_id == user[0]["user_id"] and Wallets.wallet_id == walletId)
+            wallets_query = Wallets.delete().where((Wallets.user_id == user[0]["user_id"]) & (Wallets.wallet_id == walletId))
+            print(wallets_query)
             result = wallets_query.execute()
             if result == 0:
                 return {"status": "no such element"}
