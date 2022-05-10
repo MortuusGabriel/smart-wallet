@@ -20,7 +20,7 @@ def get_wallets(token):
                 wallets.append(i)
             return wallets
         else:
-            return {"status": "wrong token"}
+            return {"status": "invalid token"}
 
     except Exception as e:
         return {"status": str(e)}
@@ -44,7 +44,7 @@ def create_wallet(token, json_data):
             else:
                 return str(validator.errors)
         else:
-            return {"status": "wrong token"}
+            return {"status": "invalid token"}
     except Exception as e:
         return {"status": str(e)}
 
@@ -57,14 +57,13 @@ def delete_wallet(token, walletId):
 
         if user[0]['token'] == token:
             wallets_query = Wallets.delete().where((Wallets.user_id == user[0]["user_id"]) & (Wallets.wallet_id == walletId))
-            print(wallets_query)
             result = wallets_query.execute()
             if result == 0:
                 return {"status": "no such element"}
             else:
                 return {"status": "OK"}
         else:
-            return {"status": "wrong token"}
+            return {"status": "invalid token"}
     except Exception as e:
         return {"status": str(e)}
 
@@ -100,7 +99,7 @@ def get_transactions_by_wallet_id(token, wallet_id):
             else:
                 return answer
         else:
-            return {"status": "wrong token"}
+            return {"status": "invalid token"}
     except Exception as e:
         return {"status": str(e)}
 
@@ -111,12 +110,15 @@ def get_categories_by_value(token, value):
         user_query = Users.select().where(Users.email == email)
         user = user_query.dicts().execute()
 
-        categories_query = Categories.select().where(((Categories.user_id.is_null()) | (Categories.user_id == user[0]['user_id']))).select().where(Categories.category_type == int(value))
-        categories = [i for i in categories_query.dicts().execute()]
-        if len(categories) == 0:
-            return {"status": "nothing found"}
+        if user[0]['token'] == token:
+            categories_query = Categories.select().where(((Categories.user_id.is_null()) | (Categories.user_id == user[0]['user_id']))).select().where(Categories.category_type == int(value)).order_by(Categories.category_id)
+            categories = [i for i in categories_query.dicts().execute()]
+            if len(categories) == 0:
+                return {"status": "nothing found"}
+            else:
+                return categories
         else:
-            return categories
+            return {"status": "invalid token"}
     except Exception as e:
         return {"status": str(e)}
 
@@ -163,7 +165,7 @@ def get_main_screen_data(token):
             else:
                 return {"balance": balance, "currencyDto": currencies, "wallets": wallets}
         else:
-            return {"status": "wrong token"}
+            return {"status": "invalid token"}
     except Exception as e:
         return {"status": str(e)}
 
