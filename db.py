@@ -3,6 +3,7 @@ from pycbrf.toolbox import ExchangeRates
 from models import *
 from datetime import *
 from validators import *
+import threading
 
 
 def get_wallets(token):
@@ -86,7 +87,7 @@ def get_transactions_by_wallet_id(token, wallet_id):
             if int(wallet_id) in wallets:
                 wal_query = Transactions.select().where(Transactions.wallet_id == wallet_id)
                 for i in wal_query.dicts().execute():
-                    i['transaction_time'] = DateTimeEncoder().encode(i['transaction_time'])
+                    i['transaction_time'] = i['transaction_time'].isoformat()
                     answer.append(i)
             if len(answer) == 0 or int(wallet_id) not in wallets:
                 return {"status": "nothing found"}
@@ -256,11 +257,19 @@ def create_category(data):
 
 
 def update_currencies():
-    currencies = Currencies.select().where(Currencies.currency_id > 1)
-    names = [i['name'] for i in currencies.dicts().execute()]
+    currencies_query = Currencies.select().where(Currencies.currency_id > 1)
+    currencies = currencies_query.dicts().execute()
     rates_today = ExchangeRates(datetime.now())
-    rates_the_day_before = ExchangeRates(datetime.now(timezone.utc) - timedelta(days=1))
+    rates_the_day_before = ExchangeRates(datetime.now() - timedelta(days=1))
 
+    for i in currencies:
+        is_up = i['is_up']
+        if rates_today[str(i['name'])].value > rates_the_day_before[str(i['name'])].value:
+            is_up = True
+        elif rates_today[str(i['name'])].value < rates_the_day_before[str(i['name'])].value:
+            is_up = False
 
+        query = Currencies.update(value=rates_today[str(i['name'])].value, is_up=is_up).where(Currencies.currency_id == i['currency_id'])
+        query.execute()
 
-
+    print("Валюты обновлены")

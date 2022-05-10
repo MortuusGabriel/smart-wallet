@@ -1,13 +1,15 @@
+from time import sleep
 from aiohttp import web
 from db import *
+from datetime import datetime, timedelta
 import json
+from threading import Timer
+import schedule
 
 
 class WalletById(web.View):
 
     async def get(self):
-        # walletId = self.request.match_info.get("walletId", None)
-        # output = get_wallet_by_id(walletId)
         return web.json_response(status=404)
 
     async def post(self):
@@ -123,8 +125,15 @@ app.router.add_view("/categories", Categories)
 app.router.add_view("/person", Registrate)
 
 
+class RepeatTimer(Timer):
+    def run(self):
+        while not self.finished.wait(self.interval):
+            self.function(*self.args, **self.kwargs)
+
 
 if __name__ == '__main__':
     update_currencies()
+    timer = RepeatTimer(60, update_currencies)
+    timer.start()
     web.run_app(app, port=8000)
-
+    timer.cancel()
