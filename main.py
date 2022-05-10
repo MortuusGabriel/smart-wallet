@@ -120,9 +120,11 @@ app.router.add_view("/mainscreendata", MainScreen)
 app.router.add_view("/transactions", Transactions)
 app.router.add_view("/categories/person/{value}", Categories)
 app.router.add_view("/categories", Categories)
-app.router.add_view("/registrate", Registrate)
+app.router.add_view("/person", Registrate)
 
 
 
 if __name__ == '__main__':
+    update_currencies()
     web.run_app(app, port=8000)
+

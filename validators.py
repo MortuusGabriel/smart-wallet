@@ -14,7 +14,8 @@ def validate_currency(field, data):
 
 def validate_name(field, data):
     if field.value and not re.fullmatch('[\s0-9a-zA-Zа-яА-ЯёЁ]+', field.value):
-        raise peewee_validates.ValidationError("invalid value")
+        raise peewee_validates.ValidationError("invalid name")
+
 
 
 class TransactionValidator(peewee_validates.Validator):
@@ -28,3 +29,8 @@ class CategoryValidator(peewee_validates.Validator):
     name = peewee_validates.StringField(validators=[validate_name, peewee_validates.validate_not_empty()])
     category_type = peewee_validates.IntegerField()
     icon = peewee_validates.IntegerField()
+
+
+class UserValidator(peewee_validates.Validator):
+    name = peewee_validates.StringField(validators=[validate_name, peewee_validates.validate_not_empty()])
+    email = peewee_validates.StringField(validators=[peewee_validates.validate_email(), peewee_validates.validate_not_empty()])
