@@ -12,8 +12,19 @@ def validate_currency(field, data):
         raise peewee_validates.ValidationError("invalid currency")
 
 
-class SimpleValidator(peewee_validates.Validator):
+def validate_name(field, data):
+    if field.value and not re.fullmatch('[\s0-9a-zA-Zа-яА-ЯёЁ]+', field.value):
+        raise peewee_validates.ValidationError("invalid value")
+
+
+class TransactionValidator(peewee_validates.Validator):
     walletId = peewee_validates.IntegerField()
     value = peewee_validates.StringField(validators=[validate_value, peewee_validates.validate_not_empty()])
     categoryId = peewee_validates.IntegerField()
     currency = peewee_validates.StringField(validators=[validate_currency, peewee_validates.validate_not_empty()])
+
+
+class CategoryValidator(peewee_validates.Validator):
+    name = peewee_validates.StringField(validators=[validate_name, peewee_validates.validate_not_empty()])
+    category_type = peewee_validates.IntegerField()
+    icon = peewee_validates.IntegerField()

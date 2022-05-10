@@ -74,7 +74,7 @@ class Transactions(web.View):
 class Categories(web.View):
 
     async def get(self):
-        data = await self.request.json()
+
         value = self.request.match_info.get("value", None)
         token = str(data['token'])
         output = get_categories_by_value(token, value)
@@ -82,9 +82,7 @@ class Categories(web.View):
 
     async def post(self):
         data = await self.request.json()
-        output = {
-            'result': data
-        }
+        output = create_category(data)
         return web.json_response(output, status=201)
 
     async def delete(self):
@@ -121,6 +119,7 @@ app.router.add_view("/wallets/{walletId}", WalletById)
 app.router.add_view("/mainscreendata", MainScreen)
 app.router.add_view("/transactions", Transactions)
 app.router.add_view("/categories/person/{value}", Categories)
+app.router.add_view("/categories", Categories)
 app.router.add_view("/registrate", Registrate)
 
 

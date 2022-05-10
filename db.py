@@ -13,8 +13,6 @@ import decimal
 conn = MySQLDatabase(DATABASE['db'], host=DATABASE['host'], port=DATABASE['port'], user=DATABASE['user'], passwd=DATABASE['passwd'])
 
 
-
-
 class DecimalEncoder(JSONEncoder):
     def default(self, o):
         if isinstance(o, decimal.Decimal):
@@ -38,6 +36,7 @@ class Categories(BaseModel):
     name = CharField(column_name='name', max_length=45)
     category_type = BooleanField(column_name='category_type')
     user_id = IntegerField(column_name='user_id', null=True)
+    icon = IntegerField(column_name='icon_id', null=True)
 
     class Meta:
         table_name = 'categories'
@@ -248,7 +247,7 @@ def create_transaction(data, token):
         user = user_query.dicts().execute()
 
         if user[0]['token'] == token:
-            validator = SimpleValidator()
+            validator = TransactionValidator()
             validator.validate(data['data'])
             if len(validator.errors) == 0:
                 transactions_query = Transactions.insert(wallet_id=validator.data['walletId'], category_id=validator.data['categoryId'],
@@ -271,7 +270,7 @@ def update_transaction(data, transactionId):
         user = user_query.dicts().execute()
 
         if user[0]['token'] == token:
-            validator = SimpleValidator()
+            validator = TransactionValidator()
             validator.validate(data['data'])
             if len(validator.errors) == 0:
                 transactions_query = Transactions.update(wallet_id=validator.data['walletId'], category_id=validator.data['categoryId'],
@@ -306,6 +305,29 @@ def delete_transaction(data, transactionId):
                     return {"status": "no rows deleted"}
             else:
                 return {"status": "no such transaction"}
+        else:
+            return {"status": "invalid token"}
+    except Exception as e:
+        return {"status": str(e)}
+
+
+def create_category(data):
+    try:
+        token = data['token']
+        email = str(jwt_decode(token)['email'])
+        user_query = Users.select().where(Users.email == email)
+        user = user_query.dicts().execute()
+
+        if user[0]['token'] == token:
+            validator = CategoryValidator()
+            validator.validate(data['data'])
+            if len(validator.errors) == 0:
+                category_query = Categories.insert(name=validator.data['name'], category_type=validator.data['category_type'],
+                                                         icon=int(validator.data['icon']), user_id=user[0]['user_id'])
+                category_query.execute()
+                return {"status": "OK"}
+            else:
+                return str(validator.errors)
         else:
             return {"status": "invalid token"}
     except Exception as e:
