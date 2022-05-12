@@ -71,7 +71,6 @@ class Transactions(web.View):
         except Exception as ex:
             return str(ex)
 
-
     async def put(self):
         try:
             data = await self.request.json()
