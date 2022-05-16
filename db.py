@@ -12,13 +12,13 @@ def get_wallets(token):
     user = user_query.dicts().execute()
 
     if user[0]['token'] != token:
-        return {"status": "invalid token"}
+        return None, 400
 
     wallets_query = Wallets.select().where(Wallets.user_id == user[0]['user_id'])
     wallets = []
     for i in wallets_query.dicts().execute():
         wallets.append(i)
-    return wallets
+    return wallets, 200
 
 
 def create_wallet(token, json_data):
@@ -27,38 +27,39 @@ def create_wallet(token, json_data):
     user = user_query.dicts().execute()
 
     if user[0]['token'] != token:
-        return {"status": "invalid token"}
+        return None, 400
 
     validator = WalletValidator()
     validator.validate(json_data)
 
     if len(validator.errors) != 0:
-        return str(validator.errors)
+        return None, 400
 
     wallets_query = Wallets.insert(user_id=user[0]['user_id'], currency_id=validator.data['currency_id'],
                                    name=validator.data['name'], amount=validator.data['amount'],
                                    limit=validator.data['limit'],
                                    )
     wallets_query.execute()
-    return {"status": "OK"}
+    return {"status": "OK"}, 200
 
 
 def delete_wallet(token, walletId):
     email = str(jwt_decode(token)['email'])
+
     user_query = Users.select().where(Users.email == email)
     user = user_query.dicts().execute()
 
     if user[0]['token'] != token:
-        return {"status": "invalid token"}
+        return None, 400
 
     wallets_query = Wallets.delete().where(
         (Wallets.user_id == user[0]["user_id"]) & (Wallets.wallet_id == walletId))
     result = wallets_query.execute()
 
     if result == 0:
-        return {"status": "no such element"}
+        return None, 400
 
-    return {"status": "OK"}
+    return {"status": "OK"}, 200
 
 
 def get_transactions_by_wallet_id(token, wallet_id):
@@ -67,19 +68,19 @@ def get_transactions_by_wallet_id(token, wallet_id):
     user = user_query.dicts().execute()
 
     if user[0]['token'] != token:
-        return {"status": "invalid token"}
+        return None, 400
 
     wallets_query = Wallets.select(Wallets.wallet_id).where(Wallets.user_id == user[0]['user_id'])
     wallets = [i['wallet_id'] for i in wallets_query.dicts().execute()]
 
-    if len(wallets):
-        return {"status": "no wallets found"}
+    if len(wallets) == 0:
+        return None, 400
 
     if user[0]['token'] != token:
-        return {"status": "invalid token"}
+        return None, 400
 
     if int(wallet_id) not in wallets:
-        return {"status": "no such wallet"}
+        return None, 400
 
     answer = []
     wal_query = Transactions.select().where(Transactions.wallet_id == wallet_id)
@@ -88,9 +89,9 @@ def get_transactions_by_wallet_id(token, wallet_id):
         answer.append(i)
 
     if len(answer) == 0:
-        return {"status": "no transactions found"}
+        return None, 400
 
-    return answer
+    return answer, 200
 
 
 def get_categories_by_value(token, value):
@@ -99,7 +100,7 @@ def get_categories_by_value(token, value):
     user = user_query.dicts().execute()
 
     if user[0]['token'] != token:
-        return {"status": "invalid token"}
+        return None, 400
 
     categories_query = Categories.select().where(
         ((Categories.user_id.is_null()) | (Categories.user_id == user[0]['user_id']))).select().where(
@@ -107,9 +108,9 @@ def get_categories_by_value(token, value):
     categories = [i for i in categories_query.dicts().execute()]
 
     if len(categories) == 0:
-        return {"status": "nothing found"}
+        return None, 400
 
-    return categories
+    return categories, 200
 
 
 def create_user(json_data):
@@ -117,7 +118,7 @@ def create_user(json_data):
     validator.validate(json_data)
 
     if len(validator.errors) != 0:
-        return str(validator.errors)
+        return None, 400
 
     token = jwt_encode(validator.data)
     data_source = [
@@ -125,7 +126,7 @@ def create_user(json_data):
     ]
     wal_query = Users.insert(data_source)
     wal_query.execute()
-    return token
+    return token, 200
 
 
 def get_main_screen_data(token):
@@ -134,14 +135,14 @@ def get_main_screen_data(token):
     user = user_query.dicts().execute()
 
     if user[0]['token'] != token:
-        return {"status": "invalid token"}
+        return None, 400
 
     balance_query = Wallets.select(fn.SUM(Wallets.amount), fn.SUM(Wallets.income),
                                    fn.SUM(Wallets.expense)).where(Wallets.user_id == user[0]['user_id'])
     balance = balance_query.dicts().execute()[0]
 
     if len(balance) == 0:
-        return {"status": "no wallets found"}
+        return None, 400
 
     for i in balance:
         balance[i] = DecimalEncoder().encode(balance[i])
@@ -153,9 +154,9 @@ def get_main_screen_data(token):
     wallets = [i for i in wallets_query.dicts().execute()]
 
     if len(balance) == 0:
-        return {"status": "no wallets found"}
+        return None, 400
 
-    return {"balance": balance, "currencyDto": currencies, "wallets": wallets}
+    return {"balance": balance, "currencyDto": currencies, "wallets": wallets}, 200
 
 
 def create_transaction(data, token):
@@ -164,55 +165,55 @@ def create_transaction(data, token):
     user = user_query.dicts().execute()
 
     if user[0]['token'] != token:
-        return {"status": "invalid token"}
+        return None, 400
 
     validator = TransactionValidator()
     validator.validate(data['data'])
 
     if len(validator.errors) != 0:
-        return str(validator.errors)
+        return None, 400
 
     transactions_query = Transactions.insert(wallet_id=validator.data['walletId'],
                                              category_id=validator.data['categoryId'],
-                                             value=float(validator.data['value']),
+                                             value=validator.data['value'],
                                              currency=validator.data['currency'])
+
     transactions_query.execute()
-    return {"status": "OK"}
+
+    return {"status": "OK"}, 200
 
 
-def update_transaction(data, transactionId):
-    token = data['token']
+def update_transaction(data, token, transactionId):
     email = str(jwt_decode(token)['email'])
     user_query = Users.select().where(Users.email == email)
     user = user_query.dicts().execute()
 
     if user[0]['token'] != token:
-        return {"status": "invalid token"}
+        return None, 400
 
     validator = TransactionValidator()
     validator.validate(data['data'])
 
     if len(validator.errors) != 0:
-        return str(validator.errors)
+        return None, 400
 
     transactions_query = Transactions.update(wallet_id=validator.data['walletId'],
                                              category_id=validator.data['categoryId'],
-                                             value=float(validator.data['value']),
+                                             value=validator.data['value'],
                                              currency=validator.data['currency']).where(
         Transactions.transaction_id == transactionId)
 
     transactions_query.execute()
-    return {"status": "OK"}
+    return {"status": "OK"}, 200
 
 
-def delete_transaction(data, transactionId):
-    token = data['token']
+def delete_transaction(data, token, transactionId):
     email = str(jwt_decode(token)['email'])
     user_query = Users.select().where(Users.email == email)
     user = user_query.dicts().execute()
 
     if user[0]['token'] != token:
-        return {"status": "invalid token"}
+        return None, 400
 
     transactions = Transactions.select(Transactions.transaction_id
                                        ).where(
@@ -220,37 +221,36 @@ def delete_transaction(data, transactionId):
     transactions = [str(i) for i in transactions]
 
     if str(transactionId) not in transactions:
-        return {"status": "no such transaction"}
+        return None, 400
 
     transactions_query = Transactions.delete().where(Transactions.transaction_id == transactionId)
     result = transactions_query.execute()
 
     if result == 0:
-        return {"status": "no rows deleted"}
+        return None, 400
 
-    return {"status": "OK"}
+    return {"status": "OK"}, 200
 
 
-def create_category(data):
-    token = data['token']
+def create_category(data, token):
     email = str(jwt_decode(token)['email'])
     user_query = Users.select().where(Users.email == email)
     user = user_query.dicts().execute()
 
     if user[0]['token'] != token:
-        return {"status": "invalid token"}
+        return None, 400
 
     validator = CategoryValidator()
     validator.validate(data['data'])
 
     if len(validator.errors) != 0:
-        return str(validator.errors)
+        return None, 400
 
     category_query = Categories.insert(name=validator.data['name'],
                                        category_type=validator.data['category_type'],
                                        icon=int(validator.data['icon']), user_id=user[0]['user_id'])
     category_query.execute()
-    return {"status": "OK"}
+    return {"status": "OK"}, 200
 
 
 def update_currencies():

@@ -13,7 +13,7 @@ def validate_currency(field, data):
 
 
 def validate_name(field, data):
-    if field.value and not re.fullmatch('[\s0-9a-zA-Zа-яА-ЯёЁ]+', field.value):
+    if field.value and not re.fullmatch('[\s0-9a-zA-Zа-яА-ЯёЁ_]+', field.value):
         raise peewee_validates.ValidationError("invalid name")
 
 
