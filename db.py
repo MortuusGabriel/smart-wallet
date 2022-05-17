@@ -26,7 +26,6 @@ def create_wallet(token, json_data):
     user_query = Users.select().where(Users.email == email)
     user = user_query.dicts().execute()
 
-
     if user[0]['token'] != token:
         return None, 401
 
@@ -36,14 +35,14 @@ def create_wallet(token, json_data):
     if len(validator.errors) != 0:
         return None, 406
 
-    data_source = [
-        {"user_id": user[0]['user_id'], "currency_id": validator.data['currency_id'],
-         "name": validator.data['name'], "amount": validator.data['amount'],
-         "limit": validator.data['limit']},
-    ]
+    wal = Wallets(user_id= user[0]['user_id'], currency_id= validator.data['currency_id'],
+         name=validator.data['name'], amount= validator.data['amount'],
+         limit=validator.data['limit'])
+    wal.save()
 
-    wallets_query = Wallets.insert(data_source)
-    result = wallets_query.execute()
+    data_source = {"wallet_id": wal.wallet_id, "user_id": wal.user_id, "currency_id": wal.currency_id,
+         "name": wal.name, "amount": wal.amount, "limit": wal.limit}
+
     return data_source, 201
 
 
@@ -86,11 +85,17 @@ def get_transactions_by_wallet_id(token, wallet_id):
     if int(wallet_id) not in wallets:
         return None, 400
 
-    answer = []
     wal_query = Transactions.select().where(Transactions.wallet_id == wallet_id)
-    for i in wal_query.dicts().execute():
-        i['transaction_time'] = i['transaction_time'].isoformat()
-        answer.append(i)
+    answer = [i for i in wal_query.dicts().execute()]
+
+    for i in answer:
+        category_query = Categories.select().where(Categories.category_id == i['category_id'])
+        category = category_query.dicts().execute()[0]
+        currency_query = Currencies.select().where(Currencies.currency_id == i['currency_id'])
+        currency = currency_query.dicts().execute()[0]
+        i['category'] = category
+        i['currency'] = currency
+        i['value'] = str(i['value'])
 
     if len(answer) == 0:
         return None, 400
@@ -121,14 +126,18 @@ def create_user(json_data):
     validator = UserValidator()
     validator.validate(json_data)
 
-    user_query = Users.select(Users.user_id).where(Users.email == validator.data['email'])
-    user = user_query.execute()
-    if user:
-        token = jwt_encode(validator.data)
-        return token, 200
-
     if len(validator.errors) != 0:
         return None, 406
+
+    user_query = Users.select(Users.user_id).where(Users.email == validator.data['email'])
+    user = user_query.dicts().execute()
+
+    if user:
+        token = jwt_encode(validator.data)
+        query = Users.update(token=token).where(Users.user_id == int(user[0]['user_id']))
+        query.execute()
+        return token, 200
+
 
     token = jwt_encode(validator.data)
     data_source = [
@@ -170,7 +179,10 @@ def get_main_screen_data(token):
 
 
 def create_transaction(data, token):
-    email = str(jwt_decode(token)['email'])
+    try:
+        email = str(jwt_decode(token)['email'])
+    except Exception:
+        return None, 401
     user_query = Users.select().where(Users.email == email)
     user = user_query.dicts().execute()
 
@@ -178,19 +190,21 @@ def create_transaction(data, token):
         return None, 401
 
     validator = TransactionValidator()
-    validator.validate(data['data'])
+    validator.validate(data)
 
     if len(validator.errors) != 0:
         return None, 406
 
-    transactions_query = Transactions.insert(wallet_id=validator.data['walletId'],
-                                             category_id=validator.data['categoryId'],
+    tr = Transactions(wallet_id=validator.data['wallet_id'],
+                                             category_id=validator.data['category_id'],
                                              value=validator.data['value'],
-                                             currency=validator.data['currency'])
+                                             currency=validator.data['currency'],
+                      transaction_time=validator.data['transaction_time'])
+    tr.save()
+    data_source = {"transaction_id": tr.transaction_id, "wallet_id": tr.wallet_id, "category_id": tr.category_id,
+                   "value": tr.value, "currency": tr.currency, "transaction_time": tr.transaction_time}
 
-    transactions_query.execute()
-
-    return {"status": "OK"}, 201
+    return data_source, 201
 
 
 def update_transaction(data, token, transactionId):
@@ -202,7 +216,8 @@ def update_transaction(data, token, transactionId):
         return None, 401
 
     validator = TransactionValidator()
-    validator.validate(data['data'])
+    validator.validate(data)
+    print(validator.data)
 
     if len(validator.errors) != 0:
         return None, 406
@@ -251,16 +266,19 @@ def create_category(data, token):
         return None, 401
 
     validator = CategoryValidator()
-    validator.validate(data['data'])
+    validator.validate(data)
 
     if len(validator.errors) != 0:
         return None, 406
 
-    category_query = Categories.insert(name=validator.data['name'],
+    cat = Categories(name=validator.data['name'],
                                        category_type=validator.data['category_type'],
-                                       icon=int(validator.data['icon']), user_id=user[0]['user_id'])
-    category_query.execute()
-    return {"status": "OK"}, 201
+                                       icon_id=int(validator.data['icon_id']), user_id=user[0]['user_id'])
+    cat.save()
+    output = {"category_id": cat.category_id, "name": cat.name, "category_type": cat.category_type,
+              "user_id": cat.user_id,
+              "icon_id": cat.icon_id}
+    return output, 201
 
 
 def get_currencies(token):

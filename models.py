@@ -3,6 +3,7 @@ from peewee import *
 from json import JSONEncoder
 import datetime
 import decimal
+import calendar
 
 # перенести креды в переменные окружения
 conn = MySQLDatabase(DATABASE['db'], host=DATABASE['host'], port=DATABASE['port'], user=DATABASE['user'], passwd=DATABASE['passwd'])
@@ -31,7 +32,7 @@ class Categories(BaseModel):
     name = CharField(column_name='name', max_length=45)
     category_type = BooleanField(column_name='category_type')
     user_id = IntegerField(column_name='user_id', null=True)
-    icon = IntegerField(column_name='icon_id', null=True)
+    icon_id = IntegerField(column_name='icon_id', null=True)
 
     class Meta:
         table_name = 'categories'
@@ -68,8 +69,8 @@ class Transactions(BaseModel):
     wallet_id = IntegerField(column_name='wallet_id')
     category_id = IntegerField(column_name='category_id', null=True)
     value = FloatField(column_name='value')
-    currency = CharField(column_name='currency', max_length=45)
-    transaction_time = DateTimeField(column_name='transaction_time', default=datetime.datetime.now)
+    currency_id = IntegerField(column_name='currency_id')
+    transaction_time = CharField(column_name='transaction_time')
 
     class Meta:
         table_name = 'transactions'

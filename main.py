@@ -65,6 +65,7 @@ class Transactions(web.View):
             else:
                 return web.Response(status=status)
         except Exception as ex:
+            print(ex)
             return web.Response(status=400)
 
     async def post(self):
@@ -77,6 +78,7 @@ class Transactions(web.View):
             else:
                 return web.Response(status=status)
         except Exception as ex:
+            print(ex)
             return web.Response(status=400)
 
     async def put(self):
@@ -131,6 +133,7 @@ class Categories(web.View):
             else:
                 return web.Response(status=status)
         except Exception as ex:
+            print(ex)
             return web.Response(status=400)
 
 
@@ -149,6 +152,7 @@ class Registrate(web.View):
                 return web.Response(status=status)
 
         except Exception as ex:
+            print(ex)
             return web.Response(status=400)
 
 
@@ -203,7 +207,7 @@ class RepeatTimer(Timer):
 
 if __name__ == '__main__':
     update_currencies()
-    timer = RepeatTimer(60, update_currencies)
+    timer = RepeatTimer(3600, update_currencies)
     timer.start()
     web.run_app(app, port=8000)
     timer.cancel()

@@ -18,16 +18,17 @@ def validate_name(field, data):
 
 
 class TransactionValidator(peewee_validates.Validator):
-    walletId = peewee_validates.IntegerField()
+    wallet_id = peewee_validates.IntegerField()
     value = peewee_validates.StringField(validators=[validate_value, peewee_validates.validate_not_empty()])
-    categoryId = peewee_validates.IntegerField()
-    currency = peewee_validates.StringField(validators=[validate_currency, peewee_validates.validate_not_empty()])
+    category_id = peewee_validates.IntegerField()
+    currency_id = peewee_validates.IntegerField()
+    transaction_time = peewee_validates.StringField(validators=[validate_value, peewee_validates.validate_not_empty()])
 
 
 class CategoryValidator(peewee_validates.Validator):
     name = peewee_validates.StringField(validators=[validate_name, peewee_validates.validate_not_empty()])
-    category_type = peewee_validates.IntegerField()
-    icon = peewee_validates.IntegerField()
+    category_type = peewee_validates.BooleanField()
+    icon_id = peewee_validates.IntegerField()
 
 
 class UserValidator(peewee_validates.Validator):
