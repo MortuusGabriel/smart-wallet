@@ -80,6 +80,10 @@ class Currencies(BaseModel):
     name = CharField(column_name='name', max_length=45)
     value = FloatField(column_name='value')
     is_up = BooleanField(column_name='is_up')
+    icon = CharField(column_name='icon', max_length=45)
+    full_name = CharField(column_name='full_name', max_length=255)
+    full_list_name = CharField(column_name='full_list_name', max_length=255)
+
 
     class Meta:
         table_name = 'currencies'
