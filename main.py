@@ -1,14 +1,22 @@
-from time import sleep
 from aiohttp import web
 from db import *
-from datetime import datetime, timedelta
-import json
 from threading import Timer
-import schedule
 
 
 class WalletById(web.View):
-
+    async def put(self):
+        try:
+            data = await self.request.json()
+            walletId = self.request.match_info.get("walletId", None)
+            token = str(self.request.headers['Authorization']).split()[1]
+            output, status = update_wallet(data, token, walletId)
+            if output:
+                return web.json_response(output, status=status)
+            else:
+                return web.Response(status=status)
+        except Exception as ex:
+            print(ex)
+            return web.Response(status=400)
 
     async def delete(self):
         try:
@@ -36,6 +44,7 @@ class Wallets(web.View):
             else:
                 return web.Response(status=status)
         except Exception as ex:
+            print(ex)
             return web.Response(status=400)
 
     async def post(self):
@@ -92,6 +101,7 @@ class Transactions(web.View):
             else:
                 return web.Response(status=status)
         except Exception as ex:
+            print(ex)
             return web.Response(status=400)
 
     async def delete(self):
@@ -113,9 +123,8 @@ class Categories(web.View):
     async def get(self):
         try:
             data = await self.request.json()
-            value = self.request.match_info.get("value", None)
             token = str(self.request.headers['Authorization']).split()[1]
-            output, status = get_categories_by_value(token, value)
+            output, status = get_categories_by_value(token)
             if output:
                 return web.json_response(output, status=status)
             else:
@@ -193,7 +202,6 @@ app.router.add_view("/transactions/{Id}", Transactions)
 app.router.add_view("/wallets/{walletId}", WalletById)
 app.router.add_view("/mainscreen", MainScreen)
 app.router.add_view("/transactions", Transactions)
-app.router.add_view("/categories/person/{value}", Categories)
 app.router.add_view("/categories", Categories)
 app.router.add_view("/person", Registrate)
 app.router.add_view("/currencies", Currencies)

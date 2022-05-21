@@ -3,7 +3,6 @@ from peewee import *
 from json import JSONEncoder
 import datetime
 import decimal
-import calendar
 
 # перенести креды в переменные окружения
 conn = MySQLDatabase(DATABASE['db'], host=DATABASE['host'], port=DATABASE['port'], user=DATABASE['user'], passwd=DATABASE['passwd'])

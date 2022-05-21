@@ -1,4 +1,3 @@
-import json
 from datetime import datetime, timedelta, timezone
 from jwt import (
     JWT,
@@ -33,8 +32,6 @@ def jwt_decode(token):
     with open('rsa_public_key.pem', 'rb') as fh:
         verifying_key = jwk_from_pem(fh.read())
 
-
-    ######## вернуть таймчек ##########
     message_received = instance.decode(
         token, verifying_key, do_time_check=False)
     return message_received

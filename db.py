@@ -3,11 +3,14 @@ from pycbrf.toolbox import ExchangeRates
 from models import *
 from datetime import *
 from validators import *
-import threading
 
 
 def get_wallets(token):
-    email = str(jwt_decode(token)['email'])
+    try:
+        email = str(jwt_decode(token)['email'])
+    except Exception:
+        return None, 401
+
     user_query = Users.select().where(Users.email == email)
     user = user_query.dicts().execute()
 
@@ -15,14 +18,26 @@ def get_wallets(token):
         return None, 401
 
     wallets_query = Wallets.select().where(Wallets.user_id == user[0]['user_id'])
-    wallets = []
-    for i in wallets_query.dicts().execute():
-        wallets.append(i)
+    wallets = [i for i in wallets_query.dicts().execute()]
+
+    if len(wallets) == 0:
+        return None, 200
+
+    for i in wallets:
+        i = money_to_string(i)
+        currency_query = Currencies.select().where(Currencies.currency_id == i['currency_id'])
+        i['currency'] = money_to_string(currency_query.dicts().execute()[0])
+        del i['currency_id']
+
     return wallets, 200
 
 
 def create_wallet(token, json_data):
-    email = str(jwt_decode(token)['email'])
+    try:
+        email = str(jwt_decode(token)['email'])
+    except Exception:
+        return None, 401
+
     user_query = Users.select().where(Users.email == email)
     user = user_query.dicts().execute()
 
@@ -35,19 +50,51 @@ def create_wallet(token, json_data):
     if len(validator.errors) != 0:
         return None, 406
 
-    wal = Wallets(user_id= user[0]['user_id'], currency_id= validator.data['currency_id'],
+    wal = Wallets.insert(user_id= user[0]['user_id'], currency_id= validator.data['currency_id'],
          name=validator.data['name'], amount= validator.data['amount'],
          limit=validator.data['limit'])
-    wal.save()
+    wal.execute()
 
-    data_source = {"wallet_id": wal.wallet_id, "user_id": wal.user_id, "currency_id": wal.currency_id,
-         "name": wal.name, "amount": wal.amount, "limit": wal.limit}
+    result_query = Wallets.select().where(Wallets.wallet_id == Wallets.select(fn.MAX(Wallets.wallet_id))).limit(1)
+    result = money_to_string(result_query.dicts().execute()[0])
 
-    return data_source, 201
+    return result, 201
+
+
+def update_wallet(data, token, walletId):
+    try:
+        email = str(jwt_decode(token)['email'])
+    except Exception:
+        return None, 401
+
+    user_query = Users.select().where(Users.email == email)
+    user = user_query.dicts().execute()
+
+    if user[0]['token'] != token:
+        return None, 401
+
+    validator = WalletValidator()
+    validator.validate(data)
+
+    if len(validator.errors) != 0:
+        return None, 406
+
+    wal_query = Wallets.update(user_id= user[0]['user_id'], currency_id= validator.data['currency_id'],
+         name=validator.data['name'], amount= validator.data['amount'],
+         limit=validator.data['limit']).where(Wallets.wallet_id==walletId)
+    wal_query.execute()
+
+    result_query = Wallets.select().where(Wallets.wallet_id == walletId).limit(1)
+    result = money_to_string(result_query.dicts().execute()[0])
+
+    return result, 201
 
 
 def delete_wallet(token, walletId):
-    email = str(jwt_decode(token)['email'])
+    try:
+        email = str(jwt_decode(token)['email'])
+    except Exception:
+        return None, 401
 
     user_query = Users.select().where(Users.email == email)
     user = user_query.dicts().execute()
@@ -66,7 +113,11 @@ def delete_wallet(token, walletId):
 
 
 def get_transactions_by_wallet_id(token, wallet_id):
-    email = str(jwt_decode(token)['email'])
+    try:
+        email = str(jwt_decode(token)['email'])
+    except Exception:
+        return None, 401
+
     user_query = Users.select().where(Users.email == email)
     user = user_query.dicts().execute()
 
@@ -89,22 +140,26 @@ def get_transactions_by_wallet_id(token, wallet_id):
     answer = [i for i in wal_query.dicts().execute()]
 
     for i in answer:
+        i = money_to_string(i)
         category_query = Categories.select().where(Categories.category_id == i['category_id'])
-        category = category_query.dicts().execute()[0]
+        category = money_to_string(category_query.dicts().execute()[0])
         currency_query = Currencies.select().where(Currencies.currency_id == i['currency_id'])
-        currency = currency_query.dicts().execute()[0]
+        currency = money_to_string(currency_query.dicts().execute()[0])
         i['category'] = category
         i['currency'] = currency
         i['value'] = str(i['value'])
-
-    if len(answer) == 0:
-        return None, 400
+        del i['currency_id']
+        del i['category_id']
 
     return answer, 200
 
 
-def get_categories_by_value(token, value):
-    email = str(jwt_decode(token)['email'])
+def get_categories_by_value(token):
+    try:
+        email = str(jwt_decode(token)['email'])
+    except Exception:
+        return None, 401
+
     user_query = Users.select().where(Users.email == email)
     user = user_query.dicts().execute()
 
@@ -112,8 +167,7 @@ def get_categories_by_value(token, value):
         return None, 401
 
     categories_query = Categories.select().where(
-        ((Categories.user_id.is_null()) | (Categories.user_id == user[0]['user_id']))).select().where(
-        Categories.category_type == int(value)).order_by(Categories.category_id)
+        ((Categories.user_id.is_null()) | (Categories.user_id == user[0]['user_id']))).order_by(Categories.category_id)
     categories = [i for i in categories_query.dicts().execute()]
 
     if len(categories) == 0:
@@ -138,7 +192,6 @@ def create_user(json_data):
         query.execute()
         return token, 200
 
-
     token = jwt_encode(validator.data)
     data_source = [
         {'name': validator.data['name'], 'email': validator.data['email'], 'token': token},
@@ -149,7 +202,11 @@ def create_user(json_data):
 
 
 def get_main_screen_data(token):
-    email = str(jwt_decode(token)['email'])
+    try:
+        email = str(jwt_decode(token)['email'])
+    except Exception:
+        return None, 401
+
     user_query = Users.select().where(Users.email == email)
     user = user_query.dicts().execute()
 
@@ -163,17 +220,20 @@ def get_main_screen_data(token):
     if len(balance) == 0:
         return None, 400
 
-    for i in balance:
-        balance[i] = DecimalEncoder().encode(balance[i])
-    currency_query = Currencies.select(Currencies.name, Currencies.value, Currencies.is_up)
-    currencies = [i for i in currency_query.dicts().execute()]
+    # for i in balance:
+    #     balance[i] = DecimalEncoder().encode(balance[i])
+
+    currency_query = Currencies.select(Currencies.name, Currencies.value, Currencies.is_up).where(Currencies.currency_id > 1).limit(3)
+    currencies = [money_to_string(i) for i in currency_query.dicts().execute()]
 
     ######какие поля выбирать#########
     wallets_query = Wallets.select().where(Wallets.user_id == user[0]['user_id'])
-    wallets = [i for i in wallets_query.dicts().execute()]
+    wallets = [money_to_string(i) for i in wallets_query.dicts().execute()]
 
-    if len(balance) == 0:
-        return None, 400
+    for i in wallets:
+        currency_query = Currencies.select().where(Currencies.currency_id == i['currency_id'])
+        i['currency'] = money_to_string(currency_query.dicts().execute()[0])
+        del i['currency_id']
 
     return {"balance": balance, "currencyDto": currencies, "wallets": wallets}, 200
 
@@ -183,6 +243,7 @@ def create_transaction(data, token):
         email = str(jwt_decode(token)['email'])
     except Exception:
         return None, 401
+
     user_query = Users.select().where(Users.email == email)
     user = user_query.dicts().execute()
 
@@ -195,20 +256,26 @@ def create_transaction(data, token):
     if len(validator.errors) != 0:
         return None, 406
 
-    tr = Transactions(wallet_id=validator.data['wallet_id'],
+    tr = Transactions.insert(wallet_id=validator.data['wallet_id'],
                                              category_id=validator.data['category_id'],
                                              value=validator.data['value'],
-                                             currency=validator.data['currency'],
+                                             currency_id=validator.data['currency_id'],
                       transaction_time=validator.data['transaction_time'])
-    tr.save()
-    data_source = {"transaction_id": tr.transaction_id, "wallet_id": tr.wallet_id, "category_id": tr.category_id,
-                   "value": tr.value, "currency": tr.currency, "transaction_time": tr.transaction_time}
 
-    return data_source, 201
+    tr.execute()
+
+    result_query = Transactions.select().where(Transactions.transaction_id == Transactions.select(fn.MAX(Transactions.transaction_id))).limit(1)
+    result = money_to_string(result_query.dicts().execute()[0])
+
+    return result, 201
 
 
 def update_transaction(data, token, transactionId):
-    email = str(jwt_decode(token)['email'])
+    try:
+        email = str(jwt_decode(token)['email'])
+    except Exception:
+        return None, 401
+
     user_query = Users.select().where(Users.email == email)
     user = user_query.dicts().execute()
 
@@ -217,23 +284,32 @@ def update_transaction(data, token, transactionId):
 
     validator = TransactionValidator()
     validator.validate(data)
-    print(validator.data)
+    print(validator.errors)
 
     if len(validator.errors) != 0:
         return None, 406
 
-    transactions_query = Transactions.update(wallet_id=validator.data['walletId'],
-                                             category_id=validator.data['categoryId'],
+    transactions_query = Transactions.update(wallet_id=validator.data['wallet_id'],
+                                             category_id=validator.data['category_id'],
                                              value=validator.data['value'],
-                                             currency=validator.data['currency']).where(
+                                             currency_id=validator.data['currency_id'],
+                                             transaction_time=validator.data['transaction_time']).where(
         Transactions.transaction_id == transactionId)
 
     transactions_query.execute()
-    return {"status": "OK"}, 200
+
+    result_query = Transactions.select().where(Transactions.transaction_id == transactionId).limit(1)
+    result = money_to_string(result_query.dicts().execute()[0])
+
+    return result, 200
 
 
 def delete_transaction(data, token, transactionId):
-    email = str(jwt_decode(token)['email'])
+    try:
+        email = str(jwt_decode(token)['email'])
+    except Exception:
+        return None, 401
+
     user_query = Users.select().where(Users.email == email)
     user = user_query.dicts().execute()
 
@@ -258,7 +334,11 @@ def delete_transaction(data, token, transactionId):
 
 
 def create_category(data, token):
-    email = str(jwt_decode(token)['email'])
+    try:
+        email = str(jwt_decode(token)['email'])
+    except Exception:
+        return None, 401
+
     user_query = Users.select().where(Users.email == email)
     user = user_query.dicts().execute()
 
@@ -271,18 +351,23 @@ def create_category(data, token):
     if len(validator.errors) != 0:
         return None, 406
 
-    cat = Categories(name=validator.data['name'],
+    cat = Categories.insert(name=validator.data['name'],
                                        category_type=validator.data['category_type'],
                                        icon_id=int(validator.data['icon_id']), user_id=user[0]['user_id'])
-    cat.save()
-    output = {"category_id": cat.category_id, "name": cat.name, "category_type": cat.category_type,
-              "user_id": cat.user_id,
-              "icon_id": cat.icon_id}
-    return output, 201
+    cat.execute()
+
+    result_query = Categories.select().where(Categories.category_id == Categories.select(fn.MAX(Categories.category_id))).limit(1)
+    result = money_to_string(result_query.dicts().execute()[0])
+
+    return result, 201
 
 
 def get_currencies(token):
-    email = str(jwt_decode(token)['email'])
+    try:
+        email = str(jwt_decode(token)['email'])
+    except Exception:
+        return None, 401
+
     user_query = Users.select().where(Users.email == email)
     user = user_query.dicts().execute()
 
@@ -290,7 +375,7 @@ def get_currencies(token):
         return None, 401
 
     currency_query = Currencies.select()
-    currencies = [i for i in currency_query.dicts().execute()]
+    currencies = [money_to_string(i) for i in currency_query.dicts().execute()]
 
     return currencies, 200
 
