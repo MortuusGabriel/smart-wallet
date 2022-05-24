@@ -15,7 +15,6 @@ class WalletById(web.View):
             else:
                 return web.Response(status=status)
         except Exception as ex:
-            print(ex)
             return web.Response(status=400)
 
     async def delete(self):
@@ -39,12 +38,12 @@ class Wallets(web.View):
             data = await self.request.json()
             token = str(self.request.headers['Authorization']).split()[1]
             output, status = get_wallets(token)
+
             if output:
                 return web.json_response(output, status=status)
             else:
                 return web.Response(status=status)
         except Exception as ex:
-            print(ex)
             return web.Response(status=400)
 
     async def post(self):
@@ -74,7 +73,6 @@ class Transactions(web.View):
             else:
                 return web.Response(status=status)
         except Exception as ex:
-            print(ex)
             return web.Response(status=400)
 
     async def post(self):
@@ -87,7 +85,6 @@ class Transactions(web.View):
             else:
                 return web.Response(status=status)
         except Exception as ex:
-            print(ex)
             return web.Response(status=400)
 
     async def put(self):
@@ -101,7 +98,6 @@ class Transactions(web.View):
             else:
                 return web.Response(status=status)
         except Exception as ex:
-            print(ex)
             return web.Response(status=400)
 
     async def delete(self):
@@ -142,7 +138,6 @@ class Categories(web.View):
             else:
                 return web.Response(status=status)
         except Exception as ex:
-            print(ex)
             return web.Response(status=400)
 
 
@@ -151,17 +146,13 @@ class Registrate(web.View):
     async def post(self):
         try:
             data = await self.request.json()
-            token, status = create_user(data)
-            if token:
-                output = {
-                    'token': token
-                }
-                return web.json_response(output, status=status)
+            result, status = create_user(data)
+            if result:
+                return web.json_response(result, status=status)
             else:
                 return web.Response(status=status)
 
         except Exception as ex:
-            print(ex)
             return web.Response(status=400)
 
 

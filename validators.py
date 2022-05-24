@@ -40,7 +40,7 @@ class CategoryValidator(peewee_validates.Validator):
 
 
 class UserValidator(peewee_validates.Validator):
-    name = peewee_validates.StringField(validators=[validate_name, peewee_validates.validate_not_empty(), peewee_validates.validate_required()])
+    name = peewee_validates.StringField(validators=[validate_name, peewee_validates.validate_required()])
     email = peewee_validates.StringField(validators=[peewee_validates.validate_email(), peewee_validates.validate_not_empty(), peewee_validates.validate_required()])
 
 
