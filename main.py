@@ -1,7 +1,7 @@
 from aiohttp import web
 from db import *
 from threading import Timer
-
+from time import sleep
 
 class WalletById(web.View):
     async def put(self):
@@ -19,7 +19,6 @@ class WalletById(web.View):
 
     async def delete(self):
         try:
-            data = await self.request.json()
             walletId = self.request.match_info.get("walletId", None)
             token = str(self.request.headers['Authorization']).split()[1]
             output, status = delete_wallet(token, walletId)
@@ -35,7 +34,6 @@ class Wallets(web.View):
 
     async def get(self):
         try:
-            data = await self.request.json()
             token = str(self.request.headers['Authorization']).split()[1]
             output, status = get_wallets(token)
 
@@ -64,7 +62,6 @@ class Transactions(web.View):
 
     async def get(self):
         try:
-            data = await self.request.json()
             walletId = self.request.match_info.get("Id", None)
             token = str(self.request.headers['Authorization']).split()[1]
             output, status = get_transactions_by_wallet_id(token, walletId)
@@ -102,10 +99,9 @@ class Transactions(web.View):
 
     async def delete(self):
         try:
-            data = await self.request.json()
             transactionId = self.request.match_info.get("Id", None)
             token = str(self.request.headers['Authorization']).split()[1]
-            output, status = delete_transaction(data, token, transactionId)
+            output, status = delete_transaction(token, transactionId)
             if output:
                 return web.json_response(output, status=status)
             else:
@@ -118,7 +114,6 @@ class Categories(web.View):
 
     async def get(self):
         try:
-            data = await self.request.json()
             token = str(self.request.headers['Authorization']).split()[1]
             output, status = get_categories_by_value(token)
             if output:
@@ -160,7 +155,6 @@ class MainScreen(web.View):
 
     async def get(self):
         try:
-            data = await self.request.json()
             token = str(self.request.headers['Authorization']).split()[1]
             output, status = get_main_screen_data(token)
             if output:
@@ -168,6 +162,7 @@ class MainScreen(web.View):
             else:
                 return web.Response(status=status)
         except Exception as ex:
+            print(ex)
             return web.Response(status=400)
 
 
@@ -175,7 +170,6 @@ class Currencies(web.View):
 
     async def get(self):
         try:
-            data = await self.request.json()
             token = str(self.request.headers['Authorization']).split()[1]
             output, status = get_currencies(token)
             if output:
@@ -205,6 +199,7 @@ class RepeatTimer(Timer):
 
 
 if __name__ == '__main__':
+    sleep(20)
     update_currencies()
     timer = RepeatTimer(3600, update_currencies)
     timer.start()

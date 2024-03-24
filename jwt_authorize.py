@@ -17,7 +17,7 @@ payload_data = {
 
 def jwt_encode(payload_data):
     payload_data['iat'] = get_int_from_datetime(datetime.now(timezone.utc))
-    payload_data['exp'] = get_int_from_datetime(datetime.now(timezone.utc) + timedelta(days=1))
+    payload_data['exp'] = get_int_from_datetime(datetime.now(timezone.utc) + timedelta(minutes=15))
     instance = JWT()
 
     with open('rsa_private_key.pem', 'rb') as fh:

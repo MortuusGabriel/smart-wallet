@@ -11,7 +11,7 @@ def money_to_string(dic):
 
 
 def validate_value(field, data):
-    if field.value and not re.fullmatch('[0-9]+[.]?[0-9]*', field.value):
+    if field.value and not re.fullmatch('^[0-9]+[.]?[0-9]*', field.value):
         raise peewee_validates.ValidationError("invalid value")
 
 
@@ -21,7 +21,7 @@ def validate_currency(field, data):
 
 
 def validate_name(field, data):
-    if field.value and not re.fullmatch('[\s0-9a-zA-Zа-яА-ЯёЁ_]+', field.value):
+    if field.value and not re.fullmatch('[\s0-9a-zA-Zа-яА-ЯёЁ_\s]+', field.value):
         raise peewee_validates.ValidationError("invalid name")
 
 
@@ -48,4 +48,4 @@ class WalletValidator(peewee_validates.Validator):
     currency_id = peewee_validates.IntegerField(validators=[peewee_validates.validate_required()])
     name = peewee_validates.StringField(validators=[validate_name, peewee_validates.validate_not_empty(), peewee_validates.validate_required()])
     amount = peewee_validates.StringField(validators=[validate_value, peewee_validates.validate_not_empty(), peewee_validates.validate_required()])
-    limit = peewee_validates.StringField(validators=[validate_value, peewee_validates.validate_not_empty(), peewee_validates.validate_required()])
+    limit = peewee_validates.StringField(validators=[validate_value])

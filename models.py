@@ -43,7 +43,7 @@ class Wallets(BaseModel):
     currency_id = IntegerField(column_name='currency_id')
     name = CharField(column_name='name', max_length=45)
     amount = FloatField(column_name='amount', default=0)
-    limit = FloatField(column_name='limit', null=True)
+    limit = FloatField(column_name='limit', null=True, default=0)
     income = FloatField(column_name='income', null=True, default=0)
     expense = FloatField(column_name='expense', null=True, default=0)
     is_hide = BooleanField(column_name='is_hide', default=False)
